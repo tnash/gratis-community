@@ -19,6 +19,7 @@ import { animatedAvatar } from './avatar-motion.mjs';
 import { createBotTile } from './bot-tile.mjs';
 import { setupVoiceInput } from './voice-ui.mjs';
 import { setupCreateBot } from './create-bot-ui.mjs';
+import { setupHire } from './hire-ui.mjs';
 import { setupSelects } from './select-ui.mjs';
 const $ = id => document.getElementById(id);
 const api = window.orbit;
@@ -281,7 +282,9 @@ function openBotDialog(edit = true) {
   fillModels($('bot-model'),modelsForProvider(),state.settings.provider==='codex'?bot?.codexModel||'':bot?.model||'',true); $('bot-memory').value=bot?.memory||''; for(const key of ['web','files','computer','connections'])$('bot-'+key).checked=bot?.capabilities?.[key]!==false;
   if(bot)$('bot-appearance-preview').replaceChildren(characterPicker.preview(bot,bot.id===state.bots[0]?.id));$('avatar-controls').hidden = !edit; $('bot-dialog').showModal(); selects.sync(); $('bot-title').focus();
 }
-const createBot = setupCreateBot({api,onCreated:next=>{homeVisible=false;workspaceUI?.hideForHome();render(next);$('messages').scrollTop=$('messages').scrollHeight;$('prompt').focus();}});
+const afterCreate=next=>{homeVisible=false;workspaceUI?.hideForHome();render(next);$('messages').scrollTop=$('messages').scrollHeight;$('prompt').focus();};
+const hire = setupHire({api,onHired:afterCreate});
+const createBot = setupCreateBot({api,onCreated:afterCreate,onHire:choice=>hire.open(choice)});
 $('new-bot').onclick = async () => {await flushDraft();voiceInput?.cancel();selects.close();createBot.open();}; $('edit-bot').onclick = () => {if(!threadUI?.showDetails())openBotDialog(true);};
 $('bot-form').onsubmit = async e => { e.preventDefault(); const value = { name: $('bot-title').value.trim(), instructions: $('bot-system').value, userPromptTemplate: $('bot-user-template').value, [state.settings.provider==='codex'?'codexModel':'model']:$('bot-model').value, memory:$('bot-memory').value, capabilities:Object.fromEntries(['web','files','computer','connections'].map(key=>[key,$('bot-'+key).checked])) };
   if (value.userPromptTemplate.trim() && !value.userPromptTemplate.includes('{{message}}')) { $('bot-user-template').setCustomValidity('Include {{message}} where your message should go.'); $('bot-user-template').reportValidity(); return; }

@@ -1,6 +1,6 @@
 import {BOT_SHAPES,BOT_COLORS,avatarColor} from './avatar.mjs';
 import {animatedAvatar,pulseAvatar} from './avatar-motion.mjs';
-export function setupCreateBot({api,onCreated}) {
+export function setupCreateBot({api,onCreated,onHire}) {
  const $=id=>document.getElementById(id),dialog=$('create-bot-dialog');
  let shape='flower',color='orange',pending=false;
  const shapeButtons=new Map(),colorButtons=new Map();
@@ -19,6 +19,7 @@ export function setupCreateBot({api,onCreated}) {
  }
  function open(){const random=crypto.getRandomValues(new Uint32Array(2));shape=BOT_SHAPES[random[0]%BOT_SHAPES.length].id;color=BOT_COLORS[random[1]%BOT_COLORS.length].id;pending=false;$('new-bot-name').value='';$('create-error').hidden=true;paint();dialog.showModal();$('new-bot-name').focus();}
  $('new-bot-name').oninput=()=>{$('create-bot-submit').disabled=pending||!$('new-bot-name').value.trim();};
+ $('create-hire').onclick=()=>{if(pending)return;dialog.close();onHire?.({shape,color});};
  $('cancel-create-bot').onclick=()=>{if(!pending)dialog.close();};
  dialog.addEventListener('cancel',event=>{if(pending)event.preventDefault();});
  dialog.addEventListener('click',event=>{if(event.target===dialog&&!pending){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}});

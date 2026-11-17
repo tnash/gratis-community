@@ -153,7 +153,7 @@ export class Objectives{
   await s.create({conversationId:chat.id,title,prompt,timing,objectiveId:item.id});
  }
  _checkinPrompt(item){
-  return `Weekly objective check-in for "${item.title}" (objective id ${item.id}). Review current evidence and your memory, record real progress with report_objective_progress when you have a new value or note, call flag_objective_risk if it is slipping, then write a short report here: what moved, what is blocked, and what you propose next. Do not take external actions without the usual approval.`;
+  return `Weekly objective check-in for "${item.title}" (objective id ${item.id}). Review current evidence and your memory, record real progress with report_objective_progress when you have a new value or note, call flag_objective_risk if it is slipping, then write a short report here: what moved, what is blocked, and what you propose next. Offer up to two concrete next steps with propose_next_step (the user or their settings decide whether it starts). Do not take external actions without the usual approval.`;
  }
  // Pause objectives whose owner bot was deleted.
  async reconcile(){

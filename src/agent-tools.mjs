@@ -5,7 +5,7 @@ import {COMPUTER_ACTIONS} from './cloud-computer.mjs';
 import {searchWeb,readWebpage,publicURL} from './web-tools.mjs';
 
 export const defaultCapabilities={web:true,files:true,computer:true,connections:true};
-export async function agentRuntime({bot,conversationId,files,cloud,connections,gmail,signal,onActivity,approve,collaboration,memory,t3,schedules,objectives,gate,pages,requestComputerHelp,canUseComputer=()=>true}) {
+export async function agentRuntime({bot,conversationId,files,cloud,connections,gmail,signal,onActivity,approve,collaboration,memory,t3,schedules,objectives,proactivity,gate,pages,requestComputerHelp,canUseComputer=()=>true}) {
   const capabilities={...defaultCapabilities,...bot.capabilities},tools=[],definitions=[],mcpServers={};
   const register=(name,description,schema,handler)=>{const wrapped=async input=>{
     const id=crypto.randomUUID();onActivity({id,name,input:name.endsWith('_memory')?{scope:input.scope,query:input.query,manual:true}:traceValue(input),status:'running',startedAt:Date.now()});
@@ -33,6 +33,9 @@ export async function agentRuntime({bot,conversationId,files,cloud,connections,g
    register('report_objective_progress','Record real progress on an objective you own: a new metric value and/or a short note. Only report what you verified; the user can see and edit these entries. This cannot complete or drop an objective.',{id:z.string(),value:z.number().optional(),note:z.string().max(1000).optional()},async input=>text(await objectives.report(input)));
    register('flag_objective_risk','Mark an objective you own as at risk, with a note explaining why.',{id:z.string(),note:z.string().min(1).max(1000)},async input=>text(await objectives.flagRisk(input)));
    register('propose_objective','Suggest a new objective for the user to approve. It stays inactive until they accept it, so propose only goals the user has discussed or would plausibly want. Deadline is YYYY-MM-DD.',{title:z.string().min(1).max(120),description:z.string().max(2000).optional(),metric:metric.optional(),deadline:z.string().optional()},async input=>text(await objectives.propose(input)));
+  }
+  if(proactivity){
+   register('propose_next_step','Suggest one concrete next step toward an objective you own. It does not run it: the user approves it, or, if they allowed it and it is low risk, it starts on its own later. Declare riskLevel honestly (low = read-only research or drafts; medium = changes your own files or data; high = anything sent, bought, published or deleted). Set fromExternalContent true if the idea came from a web page, email or other outside text.',{action:z.string().min(1).max(300),rationale:z.string().min(1).max(600),expectedImpact:z.string().min(1).max(300),riskLevel:z.enum(['low','medium','high']),objectiveId:z.string().optional(),fromExternalContent:z.boolean().optional()},async input=>text(await proactivity.propose(input)));
   }
   if(t3&&capabilities.connections){
     register('start_t3_task','Delegate a concrete task to the T3 project chosen for this bot. Work continues independently when Gratis closes. Returns a saved job ID immediately; do not start duplicates or repeatedly poll. The task result will be delivered to this chat. Include all necessary instructions, constraints and verification criteria; private chat history is not sent automatically.',{title:z.string().min(1).max(255),prompt:z.string().min(1).max(100000)},async input=>text(await t3.submit(input)));
@@ -82,5 +85,5 @@ export async function agentRuntime({bot,conversationId,files,cloud,connections,g
   }
   if(tools.length)mcpServers.gratis=createSdkMcpServer({name:'gratis',version:'1.0.0',tools});
   if(capabilities.connections&&connections.status().composio)mcpServers.composio=await connections.mcp();
-  return {mcpServers,definitions,onActivity,collaboration,memory,t3,schedules,pages:capabilities.files?pages:undefined,web:capabilities.web,capabilities,workspaceRoot:files.root(bot.id),approve,signature:JSON.stringify({capabilities,participants:collaboration?.members.map(m=>m.id),memory:!!memory,schedules:!!schedules,objectives:!!objectives,pages:!!pages,cloud:connections.status().cloud,composio:connections.status().composio,gmail:gmail?.status().connected,t3:t3?.binding})};
+  return {mcpServers,definitions,onActivity,collaboration,memory,t3,schedules,pages:capabilities.files?pages:undefined,web:capabilities.web,capabilities,workspaceRoot:files.root(bot.id),approve,signature:JSON.stringify({capabilities,participants:collaboration?.members.map(m=>m.id),memory:!!memory,schedules:!!schedules,objectives:!!objectives,proactivity:!!proactivity,pages:!!pages,cloud:connections.status().cloud,composio:connections.status().composio,gmail:gmail?.status().connected,t3:t3?.binding})};
 }

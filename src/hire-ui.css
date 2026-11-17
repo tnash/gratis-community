@@ -1,0 +1,10 @@
+#hire-dialog .create-stack { gap: 16px; align-items: stretch; width: 100%; }
+#hire-dialog label { display: grid; gap: 6px; color: var(--muted, #aaa); font-size: 13px; }
+#hire-dialog input:not([type=checkbox]),#hire-dialog textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; color: var(--text, #eee); background: var(--surface, #222); border: 1px solid var(--border, #3a3a3a); border-radius: 11px; font: inherit; font-size: 14px; }
+#hire-dialog textarea { resize: vertical; line-height: 1.5; }
+#hire-dialog :focus-visible { outline: 2px solid #609bdf; outline-offset: 2px; }
+#hire-draft { max-height: 50vh; overflow-y: auto; display: grid; gap: 14px; }
+.hire-section { display: grid; gap: 8px; }
+.hire-section h3 { font-size: 13px; font-weight: 550; margin: 0; color: var(--muted, #999); }
+.hire-item { display: flex !important; align-items: center; gap: 10px; color: var(--text, #eee) !important; font-size: 14px !important; }
+#hire-error { color: #ff777b; font-size: 13px; }

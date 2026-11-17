@@ -93,6 +93,7 @@ export class Schedules {
     if(run.status==='needs_review'){run.error=failed?.error||'No completed reply was recorded.';item.enabled=false;item.error='Review the last run, then resume this schedule.';}changed=true;
    }
    if(!item.enabled||item.nextRunAt>this.now()||this.busy(c)||item.runs.some(r=>['starting','running'].includes(r.status)))continue;
+   if(item.objectiveId&&this.service.proactivity?.level(item.botId)==='off'){item.nextRunAt=nextRun(item.timing,this.now(),item.nextRunAt);changed=true;continue;}
    if(this.service.controls?.isPaused(item.botId)){this.service.controls.log('pause',item.botId,'Skipped scheduled task "'+item.title+'" (bot paused)','skipped');item.nextRunAt=nextRun(item.timing,this.now(),item.nextRunAt);changed=true;continue;}
    // Coalesce missed intervals to one fresh check. Never replay a backlog.
    await this.startRun(item,item.nextRunAt);

@@ -14,7 +14,7 @@ const json=(body,status=200)=>new Response(status===204?null:JSON.stringify(body
 async function fixture(t,routes={},{openExternal=async()=>{}}={}){
   const directory=await mkdtemp(join(tmpdir(),'gratis-gmail-'));t.after(()=>rm(directory,{recursive:true,force:true}));
   const calls=[];
-  const request=async(url,options={})=>{url=new URL(url);const key=`${options.method||'GET'} ${url.hostname}${url.pathname}`;calls.push({key,url,options});
+  const request=async(url,options={})=>{url=new URL(url);const key=`${options.method||'GET'} ${url.hostname}${url.pathname.replace('/gmail/v1/users/me','')}`;calls.push({key,url,options});
     if(key==='POST oauth2.googleapis.com/token')return routes.token?routes.token(options):json({access_token:'access-1',refresh_token:'refresh-1',expires_in:3600});
     if(key==='POST oauth2.googleapis.com/revoke')return json({});
     const route=routes[key];if(!route)throw new Error('Unexpected request '+key);return typeof route==='function'?route(url,options):route;};
@@ -26,7 +26,7 @@ async function connected(t,routes){const f=await fixture(t,routes);f.gmail.value
 
 test('connect runs a PKCE loopback sign-in with the narrow scope and stores the token encrypted',async t=>{
   let authUrl;
-  const {gmail,calls,directory}=await fixture(t,{'GET gmail.googleapis.com/gmail/v1/users/me/profile':json({emailAddress:'me@example.com'})},{openExternal:async href=>{
+  const {gmail,calls,directory}=await fixture(t,{'GET gmail.googleapis.com/profile':json({emailAddress:'me@example.com'})},{openExternal:async href=>{
     authUrl=new URL(href);const redirect=new URL(authUrl.searchParams.get('redirect_uri'));redirect.searchParams.set('code','auth-code');redirect.searchParams.set('state',authUrl.searchParams.get('state'));
     setImmediate(()=>fetch(redirect).catch(()=>{}));}});
   const status=await gmail.connect(CLIENT);
@@ -51,18 +51,18 @@ test('connect rejects a malformed client before opening a browser',async t=>{
 
 test('search builds the query, reads metadata and reports more results',async t=>{
   const {gmail,calls}=await connected(t,{
-    'GET gmail.googleapis.com/gmail/v1/users/me/messages':json({messages:[{id:'aaaa1111'}],nextPageToken:'next'}),
-    'GET gmail.googleapis.com/gmail/v1/users/me/messages/aaaa1111':json({id:'aaaa1111',threadId:'t1',labelIds:['INBOX','UNREAD'],snippet:'hello',payload:{headers:[{name:'From',value:'a@example.com'},{name:'Subject',value:'Hi'},{name:'Date',value:'Mon'}]}})});
+    'GET gmail.googleapis.com/messages':json({messages:[{id:'aaaa1111'}],nextPageToken:'next'}),
+    'GET gmail.googleapis.com/messages/aaaa1111':json({id:'aaaa1111',threadId:'t1',labelIds:['INBOX','UNREAD'],snippet:'hello',payload:{headers:[{name:'From',value:'a@example.com'},{name:'Subject',value:'Hi'},{name:'Date',value:'Mon'}]}})});
   const result=await gmail.search({query:'is:unread',max:999});
   assert.deepEqual(result,{messages:[{id:'aaaa1111',threadId:'t1',from:'a@example.com',subject:'Hi',date:'Mon',labels:['INBOX','UNREAD'],snippet:'hello'}],more:true});
-  const list=calls.find(c=>c.key==='GET gmail.googleapis.com/gmail/v1/users/me/messages');assert.equal(list.url.searchParams.get('q'),'is:unread');assert.equal(list.url.searchParams.get('maxResults'),'50');
+  const list=calls.find(c=>c.key==='GET gmail.googleapis.com/messages');assert.equal(list.url.searchParams.get('q'),'is:unread');assert.equal(list.url.searchParams.get('maxResults'),'50');
 });
 
 test('read returns plain text, falls back to stripped HTML, and flags the body untrusted',async t=>{
   const enc=s=>Buffer.from(s).toString('base64url');
   const {gmail}=await connected(t,{
-    'GET gmail.googleapis.com/gmail/v1/users/me/messages/plain0001':json({id:'plain0001',payload:{mimeType:'multipart/alternative',parts:[{mimeType:'text/html',body:{data:enc('<b>html</b>')}},{mimeType:'text/plain',body:{data:enc('plain body')}}]}}),
-    'GET gmail.googleapis.com/gmail/v1/users/me/messages/html00001':json({id:'html00001',payload:{mimeType:'text/html',body:{data:enc('<style>x{}</style><p>Hello <b>there</b></p><script>bad()</script>')}}})});
+    'GET gmail.googleapis.com/messages/plain0001':json({id:'plain0001',payload:{mimeType:'multipart/alternative',parts:[{mimeType:'text/html',body:{data:enc('<b>html</b>')}},{mimeType:'text/plain',body:{data:enc('plain body')}}]}}),
+    'GET gmail.googleapis.com/messages/html00001':json({id:'html00001',payload:{mimeType:'text/html',body:{data:enc('<style>x{}</style><p>Hello <b>there</b></p><script>bad()</script>')}}})});
   const plain=await gmail.read({id:'plain0001'});assert.equal(plain.body,'plain body');assert.equal(plain.untrusted,true);
   assert.equal((await gmail.read({id:'html00001'})).body,'Hello there');
 });
@@ -70,9 +70,9 @@ test('read returns plain text, falls back to stripped HTML, and flags the body u
 test('label creates a missing label, archives with INBOX removal, and refuses Trash, Spam, Sent and Drafts',async t=>{
   let created;
   const {gmail,calls}=await connected(t,{
-    'GET gmail.googleapis.com/gmail/v1/users/me/labels':json({labels:[{id:'L1',name:'Other'}]}),
-    'POST gmail.googleapis.com/gmail/v1/users/me/labels':(url,options)=>{created=JSON.parse(options.body);return json({id:'L2',name:created.name});},
-    'POST gmail.googleapis.com/gmail/v1/users/me/messages/batchModify':json({},204)});
+    'GET gmail.googleapis.com/labels':json({labels:[{id:'L1',name:'Other'}]}),
+    'POST gmail.googleapis.com/labels':(url,options)=>{created=JSON.parse(options.body);return json({id:'L2',name:created.name});},
+    'POST gmail.googleapis.com/messages/batchModify':json({},204)});
   assert.deepEqual(await gmail.label({ids:['aaaa1111','bbbb2222'],add:['Archive'],remove:['inbox']}),{changed:2});
   assert.equal(created.name,'Archive');
   assert.deepEqual(JSON.parse(calls.at(-1).options.body),{ids:['aaaa1111','bbbb2222'],addLabelIds:['L2'],removeLabelIds:['INBOX']});
@@ -82,15 +82,15 @@ test('label creates a missing label, archives with INBOX removal, and refuses Tr
 
 test('trash moves each message to Trash and never calls a delete endpoint',async t=>{
   const {gmail,calls}=await connected(t,{
-    'POST gmail.googleapis.com/gmail/v1/users/me/messages/aaaa1111/trash':json({id:'aaaa1111'}),
-    'POST gmail.googleapis.com/gmail/v1/users/me/messages/bbbb2222/trash':json({id:'bbbb2222'})});
+    'POST gmail.googleapis.com/messages/aaaa1111/trash':json({id:'aaaa1111'}),
+    'POST gmail.googleapis.com/messages/bbbb2222/trash':json({id:'bbbb2222'})});
   assert.deepEqual(await gmail.trash({ids:['aaaa1111','bbbb2222']}),{trashed:2});
   assert.equal(calls.some(c=>(c.options.method||'GET')==='DELETE'),false);
 });
 
 test('an expired access token is refreshed once and the request retried',async t=>{
   let tries=0;
-  const {gmail,calls}=await connected(t,{'GET gmail.googleapis.com/gmail/v1/users/me/labels':()=>++tries===1?json({error:{message:'expired'}},401):json({labels:[{id:'L1',name:'Work',type:'user'}]})});
+  const {gmail,calls}=await connected(t,{'GET gmail.googleapis.com/labels':()=>++tries===1?json({error:{message:'expired'}},401):json({labels:[{id:'L1',name:'Work',type:'user'}]})});
   assert.deepEqual(await gmail.labels(),[{name:'Work',type:'user'}]);
   assert.equal(calls.filter(c=>c.key==='POST oauth2.googleapis.com/token').length,2);
 });
@@ -101,7 +101,7 @@ test('a revoked refresh token asks the user to reconnect',async t=>{
 });
 
 test('API errors surface Gmail’s message and tools need a connection',async t=>{
-  const {gmail}=await connected(t,{'GET gmail.googleapis.com/gmail/v1/users/me/labels':json({error:{message:'Rate Limit Exceeded'}},429)});
+  const {gmail}=await connected(t,{'GET gmail.googleapis.com/labels':json({error:{message:'Rate Limit Exceeded'}},429)});
   await assert.rejects(gmail.labels(),/429.*Rate Limit/);
   const {gmail:fresh}=await fixture(t);await assert.rejects(fresh.labels(),/Connect Gmail/);
 });

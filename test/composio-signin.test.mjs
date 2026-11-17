@@ -18,7 +18,7 @@ const response=(value,status=200)=>({ok:status>=200&&status<300,status,json:asyn
 async function recoveryFixture(t,{request,connectComposio=async()=>{},withProject=true}={}){
  const directory=await mkdtemp(join(tmpdir(),'gratis-login-recovery-'));t.after(()=>rm(directory,{recursive:true,force:true}));
  const calls=[],opened=[];let configured;
- const connections={encrypt:text=>Buffer.from(text).map(b=>b^42),decrypt:buffer=>Buffer.from(buffer).map(b=>b^42).toString(),connectComposio:async key=>{await connectComposio(key);configured=key;}};
+ const connections={encrypt:async text=>Buffer.from(text).map(b=>b^42),decrypt:async buffer=>Buffer.from(buffer).map(b=>b^42).toString(),connectComposio:async key=>{await connectComposio(key);configured=key;}};
  const execute=async(binary,args,options)=>{calls.push(args);
   if(args.includes('--no-wait'))await writeFile(join(options.cwd,'pending-login-session.json'),JSON.stringify({loginUrl:'https://dashboard.composio.dev/login?fixture=1'}));
   if(args.includes('--poll'))await writeFile(join(options.cwd,'user_data.json'),JSON.stringify({api_key:'uak_fixture_private',org_id:'org_fixture',base_url:'https://backend.composio.dev'}));

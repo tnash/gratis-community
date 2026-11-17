@@ -28,3 +28,13 @@ test('catalog uses the supported page size and preserves search and pagination',
  let request;const c=await fixture(t,()=>({create:async()=>({sessionId:'catalog-session',toolkits:async args=>{request=args;return{items:[{slug:'gmail',name:'Gmail',connection:{isActive:true}}],cursor:'next-page'};}})}));
  await c.connectComposio('ak_catalog');const result=await c.catalog({search:'gmail',cursor:'previous-page'});assert.deepEqual(request,{limit:50,search:'gmail',cursor:'previous-page'});assert.equal(result.cursor,'next-page');assert.equal(result.items[0].connected,true);
 });
+test('disconnecting clears a saved Composio credential but keeps the user id and cloud settings',async t=>{
+ const c=await fixture(t,()=>({create:async()=>({sessionId:'s'})}));const userId=c.value.userId;
+ await c.connectComposio('ak_working');c.value.cloud={token:'t'.repeat(16),endpoint:'https://x.example'};await c.save();
+ assert.equal((await c.disconnectComposio()).composio,false);assert.equal(c.value.userId,userId);assert.equal(c.status().cloud,true);
+ const reopened=await new Connections({directory:c.directory,encrypt,decrypt}).init();assert.equal(reopened.status().composio,false);await assert.rejects(reopened.session(),/Connect Composio/);
+});
+test('consumer keys (ck_) are rejected with a clear message and nothing is saved',async t=>{
+ const c=await fixture(t,()=>({create:async()=>({sessionId:'s'})}));
+ await assert.rejects(c.configure({composioKey:'ck_consumer_key'}),/consumer key/);assert.equal(c.status().composio,false);
+});

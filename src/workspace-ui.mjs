@@ -127,7 +127,7 @@ export function setupWorkspace({api,getState,run,avatar,onOpenSource}){
   api.onComputerFrame(next=>{if(tab==='computer')draw(next);});
   function renderSignIn(value){
     const busy=['opening','waiting','configuring'].includes(value.status);
-    $('composio-signin').disabled=busy;
+    $('composio-signin').disabled=busy;$('composio-disconnect').hidden=!linked;
     $('composio-signin').textContent=value.status==='opening'?'Opening sign-in…':value.status==='waiting'?'Waiting for sign-in…':value.status==='configuring'?'Connecting your account…':value.status==='error'?'Retry connection':linked?'Sign in again':'Sign in to Composio';
     $('composio-signin-cancel').hidden=!busy&&value.status!=='error';$('composio-signin-cancel').textContent=value.status==='error'?'Start over':'Cancel sign-in';$('composio-signin-open').hidden=value.status!=='waiting';
     if(busy)$('composio-status').textContent=value.status==='waiting'?'Finish signing in in your browser. This window will update automatically.':'Connecting to Composio…';
@@ -176,6 +176,7 @@ export function setupWorkspace({api,getState,run,avatar,onOpenSource}){
   }
   $('open-connections').onclick=()=>connections();$('computer-connect').onclick=()=>connections();
   $('app-search').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>loadCatalog(),300);};$('refresh-apps').onclick=()=>loadCatalog();$('apps-more').onclick=()=>loadCatalog(true);
+  $('composio-disconnect').onclick=async()=>{try{await api.disconnectComposio();linked=false;catalog=[];cursor=null;paintCatalog();$('apps-more').hidden=true;$('app-catalog-status').textContent='Sign in to browse and connect apps.';renderSignIn(await api.signInState());}catch(error){$('connection-error').textContent=error.message;$('connection-error').hidden=false;}};
   $('composio-signin').onclick=beginSignIn;$('composio-signin-cancel').onclick=async()=>renderSignIn(await api.signInCancel());$('composio-signin-open').onclick=()=>api.signInOpen();
   api.onSignInState(value=>{if(value.status==='connected'){linked=true;if($('connections-dialog').open)void loadCatalog();}renderSignIn(value);});
   api.onConnectionsChanged(()=>{if($('connections-dialog').open)void loadCatalog();});

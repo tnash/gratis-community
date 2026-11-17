@@ -10,7 +10,7 @@ export class Connections {
   async save(){const temporary=join(this.directory,`.connections-${randomUUID()}`);await writeFile(temporary,await this.encrypt(JSON.stringify(this.value)),{mode:0o600});await rename(temporary,join(this.directory,'connections.secure'));}
   status(){return {composio:!!(this.value.composioKey||this.value.composioAccount),cloud:!!this.value.cloud?.token,cloudEndpoint:this.value.cloud?.endpoint||''};}
   async configure({composioKey,cloudEndpoint,cloudToken}={}){
-    if(composioKey!==undefined){if(typeof composioKey!=='string'||composioKey.length>2000)throw new Error('Invalid Composio key.');this.value.composioKey=composioKey.trim();delete this.value.composioAccount;delete this.value.sessionId;this.sessionPromise=null;}
+    if(composioKey!==undefined){if(typeof composioKey!=='string'||composioKey.length>2000)throw new Error('Invalid Composio key.');if(/^\s*ck_/.test(composioKey))throw new Error('That is a Composio consumer key (ck_), which Gratis cannot use. Use a project API key that starts with ak_, or sign in with your browser.');this.value.composioKey=composioKey.trim();delete this.value.composioAccount;delete this.value.sessionId;this.sessionPromise=null;}
     if(cloudEndpoint!==undefined||cloudToken!==undefined){const endpoint=cloudEndpoint||this.value.cloud?.endpoint;const token=cloudToken||this.value.cloud?.token;const url=new URL(endpoint);if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash)throw new Error('The cloud computer needs a secure HTTPS endpoint.');if(typeof token!=='string'||token.length<16||token.length>4096)throw new Error('Invalid cloud computer credential.');this.value.cloud={endpoint:url.origin,token};}
     await this.save();return this.status();
   }
@@ -21,6 +21,11 @@ export class Connections {
     const previous=this.value,previousSession=this.sessionPromise;
     this.value={...previous,composioKey:typeof key==='string'?key:undefined,composioAccount:typeof key==='string'?undefined:key,sessionId:session.sessionId};this.sessionPromise=Promise.resolve(session);
     try{await this.save();}catch(error){this.value=previous;this.sessionPromise=previousSession;throw error;}
+    return this.status();
+  }
+  async disconnectComposio(){
+    const previous=this.value;this.value={userId:previous.userId,...(previous.cloud?{cloud:previous.cloud}:{})};this.sessionPromise=null;
+    try{await this.save();}catch(error){this.value=previous;throw error;}
     return this.status();
   }
   async session(){

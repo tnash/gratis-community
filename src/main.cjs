@@ -225,6 +225,7 @@ app.whenReady().then(async () => {
   const {SLACK_MANIFEST}=await import('./slack-transport.mjs');
   for(const [name,operation]of Object.entries({status:()=>messaging?messaging.status():{connected:false,state:messagingStartupError},manifest:()=>SLACK_MANIFEST,configure:value=>messaging.configure(value),link:()=>messaging.linkCode(),channels:()=>messaging.channels(),disconnect:()=>messaging.disconnect(),review:()=>messaging.reviewDeliveries()}))ipcMain.handle('orbit:slack-'+name,(e,value)=>{authorized(e);if(!messaging&&name!=='status'&&name!=='manifest')throw Error(messagingStartupError);return operation(value);});
   ipcMain.handle('orbit:connections', async e => {authorized(e);return connections.status();});
+  ipcMain.handle('orbit:disconnect-composio', async e => {authorized(e);await signIn.cancel();return connections.disconnectComposio();});
   ipcMain.handle('orbit:configure-connections', async (e,value) => {authorized(e);return connections.configure(value);});
   ipcMain.handle('orbit:gmail-status', e => {authorized(e);return gmail.status();});
   ipcMain.handle('orbit:gmail-connect', async (e,value) => {authorized(e);return gmail.connect(value);});

@@ -20,11 +20,11 @@ export class ComposioSignIn {
     if(!this.connections.encrypt)return;
     const files={};for(const name of savedFiles){try{files[name]=await readFile(join(job.cache,name),'utf8');}catch(error){if(error.code!=='ENOENT')throw error;}}
     if(!files['user_data.json'])return;
-    const temporary=this.recovery+'.tmp';await writeFile(temporary,this.connections.encrypt(JSON.stringify({files})),{mode:0o600});await rename(temporary,this.recovery);
+    const temporary=this.recovery+'.tmp';await writeFile(temporary,await this.connections.encrypt(JSON.stringify({files})),{mode:0o600});await rename(temporary,this.recovery);
   }
   async restore(job){
     if(!this.connections.decrypt)return false;
-    let saved;try{saved=JSON.parse(this.connections.decrypt(await readFile(this.recovery)));}catch(error){if(error.code==='ENOENT')return false;throw new Error('Could not unlock your saved Composio sign-in. Cancel sign-in to start again.');}
+    let saved;try{saved=JSON.parse(await this.connections.decrypt(await readFile(this.recovery)));}catch(error){if(error.code==='ENOENT')return false;throw new Error('Could not unlock your saved Composio sign-in. Cancel sign-in to start again.');}
     for(const name of savedFiles){if(typeof saved.files?.[name]!=='string')continue;await mkdir(join(job.cache,name,'..'),{recursive:true,mode:0o700});await writeFile(join(job.cache,name),saved.files[name],{mode:0o600});}
     return true;
   }

@@ -58,6 +58,8 @@ for(const name of ['view','setPaused','saveBudget','removeBudget','savePolicy','
 api.onControlsChanged=cb=>{const listener=()=>cb();ipcRenderer.on('orbit:controls-changed',listener);return()=>ipcRenderer.removeListener('orbit:controls-changed',listener);};
 for(const name of ['view','setLevel','setQuietHours','resolve','remove'])api['proactivity'+name[0].toUpperCase()+name.slice(1)]=value=>invoke('orbit:proactivity-'+name,value);
 api.hireDraft=value=>invoke('orbit:hire-draft',value);api.hireApply=value=>invoke('orbit:hire-apply',value);
+for(const name of ['view','create','update','remove'])api['knowledge'+name[0].toUpperCase()+name.slice(1)]=value=>invoke('orbit:knowledge-'+name,value);
+api.onKnowledgeChanged=cb=>{const listener=()=>cb();ipcRenderer.on('orbit:knowledge-changed',listener);return()=>ipcRenderer.removeListener('orbit:knowledge-changed',listener);};
 api.onSchedulesChanged=cb=>{const listener=()=>cb();ipcRenderer.on('orbit:schedules-changed',listener);return()=>ipcRenderer.removeListener('orbit:schedules-changed',listener);};
 for(const name of ['status','configure','connect','confirm','disconnect','qr'])api[name==='qr'?'mobileQR':'mobile'+name[0].toUpperCase()+name.slice(1)]=value=>invoke('orbit:mobile-'+name,value);
 api.onMobileChanged=cb=>{const listener=()=>cb();ipcRenderer.on('orbit:mobile-changed',listener);return()=>ipcRenderer.removeListener('orbit:mobile-changed',listener);};

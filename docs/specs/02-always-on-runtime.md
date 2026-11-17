@@ -57,3 +57,12 @@ Phone UI    <--existing mobile relay-->  Runtime (via desktop or direct)
 ## Open questions
 - Provider terms for headless subscription use (blocking decision).
 - Is the phone relay pointed at the runtime directly, or still at the desktop?
+
+## Implementation status
+Phase 2 core, built beside the desktop app rather than by refactoring `main.cjs` (83 IPC handlers; the extraction stays unstarted to protect the working app):
+- `src/runtime-core.mjs`: Electron-free chat service, schedules, objectives, controls, proactivity and knowledge.
+- `src/runtime-crypto.mjs`: passphrase keystore (scrypt + AES-256-GCM) in place of the OS keychain.
+- `src/runtime-server.mjs`: loopback HTTP API, protocol version check, read/run/admin tokens, instant revoke.
+- `scripts/gratis-runtime.mjs`: `init`, `run`, `token`. Passphrase comes from `GRATIS_RUNTIME_PASSPHRASE`.
+
+Not done: desktop as a client, local socket, remote TLS and enrollment code, checkpoint move between runtimes, Docker image, approval notifications (approvals queue but nothing notifies), memory, computer, Gmail, T3 and phone relay on the runtime, and the provider-login device flow (a headless runtime has no Claude or Codex login until the terms question is settled).

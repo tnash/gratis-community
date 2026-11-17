@@ -139,10 +139,20 @@ export function setupWorkspace({api,getState,run,avatar,onOpenSource}){
     $('connection-error').hidden=true;
     try{renderSignIn(await api.signInStart());}catch(error){renderSignIn({status:'error',error:error.message});}
   }
+  async function renderGmail(){
+    try{const s=await api.gmailStatus();$('gmail-status').textContent=s.connected?`Connected${s.email?' as '+s.email:''}. Bots with Connections on can search, label and trash your mail.`:s.configured?'Saved Google client. Click Connect Gmail to sign in.':'Not connected. Add your Google OAuth client below.';
+      $('gmail-disconnect').hidden=!s.connected;$('gmail-connect').textContent=s.connected?'Reconnect Gmail':'Connect Gmail';$('gmail-client-id').value=s.clientId;$('gmail-client').open=!s.configured;}
+    catch(error){$('gmail-status').textContent=error.message;}
+  }
+  $('gmail-connect').onclick=async()=>{const button=$('gmail-connect');button.disabled=true;button.textContent='Waiting for Google…';
+    try{await api.gmailConnect({clientId:$('gmail-client-id').value,clientSecret:$('gmail-client-secret').value});$('gmail-client-secret').value='';await renderGmail();}
+    catch(error){await renderGmail();$('gmail-status').textContent=error.message;}
+    button.disabled=false;};
+  $('gmail-disconnect').onclick=async()=>{try{await api.gmailDisconnect();await renderGmail();}catch(error){$('gmail-status').textContent=error.message;}};
   async function connections({signIn=false}={}){
     const status=await api.connections();linked=status.composio;
     $('cloud-status').textContent=status.cloud?'Cloud computer connected':'Cloud computer not connected';$('cloud-endpoint').value=status.cloudEndpoint;$('connection-error').hidden=true;
-    if(!$('connections-dialog').open)$('connections-dialog').showModal();renderSignIn(await api.signInState());
+    if(!$('connections-dialog').open)$('connections-dialog').showModal();renderSignIn(await api.signInState());void renderGmail();
     if(linked)void loadCatalog();
     if(signIn)await beginSignIn();
   }

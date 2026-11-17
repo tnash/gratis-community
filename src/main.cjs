@@ -19,7 +19,7 @@ const controlState=value=>({...value,control:humanComputers.has(value.conversati
 const computerSnapshot=id=>{const snapshot=cloud.snapshot(id);return {...snapshot,state:controlState(snapshot.state)};};
 let messaging,messagingStartupError,secureStorageAccess;let rendererPagesReady=false;let pendingPageLink;let deliverPageLink;app.on('open-url',(event,url)=>{event.preventDefault();if(deliverPageLink)deliverPageLink(url);else pendingPageLink=url;});
 let phonePage=null,phonePageSelection=0,phonePagesMeta=[],refreshPhonePages;let pages,pageStore,pageBrowser;const pageTickets=new Map();
-let mobileTeamSelected,teamRefresh,teamRefreshVersion=0,teamConnection,teamExecutor,releaseDataLock, window, service, connections, files, cloud, signIn, memory, t3Connection, t3Tasks, t3Host, schedules, mobile, mobileProviders, mobileDictation, computerControl, mobileComputer, closing = false, finishDraftFlush, voiceTask;
+let gmail,mobileTeamSelected,teamRefresh,teamRefreshVersion=0,teamConnection,teamExecutor,releaseDataLock, window, service, connections, files, cloud, signIn, memory, t3Connection, t3Tasks, t3Host, schedules, mobile, mobileProviders, mobileDictation, computerControl, mobileComputer, closing = false, finishDraftFlush, voiceTask;
 app.on('activate',()=>{if(window&&!window.isDestroyed()){window.show();window.focus();}});
 app.on('second-instance', () => { if (window && !window.isDestroyed()) { window.show(); window.focus(); } });
 async function shutdown() {
@@ -55,9 +55,10 @@ app.whenReady().then(async () => {
     catch (error) { if (!['ENOENT', 'EEXIST'].includes(error.code)) throw error; }
   }
   const { ChatService } = await import('./chat-service.mjs');
-  const [{Connections},{WorkspaceFiles},{CloudComputer},{agentRuntime},{ComposioSignIn}] = await Promise.all([import('./connections.mjs'),import('./workspace-files.mjs'),import('./cloud-computer.mjs'),import('./agent-tools.mjs'),import('./composio-signin.mjs')]);
+  const [{Gmail},{Connections},{WorkspaceFiles},{CloudComputer},{agentRuntime},{ComposioSignIn}] = await Promise.all([import('./gmail.mjs'),import('./connections.mjs'),import('./workspace-files.mjs'),import('./cloud-computer.mjs'),import('./agent-tools.mjs'),import('./composio-signin.mjs')]);
   const {createSecureStorageAccess}=await import('./secure-storage.mjs');secureStorageAccess=createSecureStorageAccess(safeStorage);
   connections=await new Connections({directory:dataDir,encrypt:secureStorageAccess.encrypt,decrypt:secureStorageAccess.decrypt}).init();
+  gmail=await new Gmail({directory:dataDir,encrypt:secureStorageAccess.encrypt,decrypt:secureStorageAccess.decrypt,openExternal:url=>shell.openExternal(url)}).init();
   signIn=new ComposioSignIn({directory:dataDir,binary:process.platform==='darwin'?(app.isPackaged?path.join(process.resourcesPath,'composio-cli','composio'):path.join(__dirname,'../assets/composio-cli/composio')):null,connections,openExternal:url=>shell.openExternal(url),onState:state=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:signin-state',state);}});
   connections.onChange=()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:connections-changed');};
   const [{T3Connection},{T3Tasks},{T3LocalHost}]=await Promise.all([import('./t3-connection.mjs'),import('./t3-tasks.mjs'),import('./t3-local.mjs')]);
@@ -91,7 +92,7 @@ app.whenReady().then(async () => {
         ...retained.map(async seat=>{if(connections.status().cloud&&(humanComputers.has(seat.conversationId)||cloud.serverOwners.get(seat.conversationId))){await cloud.whenIdle(seat.conversationId);await cloud.control(seat.botId,seat.conversationId,false);}setHumanControl(seat.conversationId,false);if(window&&!window.isDestroyed())window.webContents.send('orbit:computer-state',computerSnapshot(seat.conversationId).state);}),
       ]);
       if(results.some(r=>r.status==='rejected'))throw new Error('Could not finish stopping a group computer. Your member changes have not been saved. Try again.');
-    },runtimeFactory:args=>agentRuntime({...args,files,cloud,connections,canUseComputer:()=>!humanComputers.has(args.conversationId),t3:service._conversation(args.conversationId).messaging&&!service._conversation(args.conversationId).messaging.allowTools?undefined:t3Agent(args),schedules:service._conversation(args.conversationId).messaging&&!service._conversation(args.conversationId).messaging.allowTools?undefined:scheduleAgent(args),pages:service._conversation(args.conversationId).messaging?undefined:pages?.tools({botId:args.bot.id,conversationId:args.conversationId})}) });
+    },runtimeFactory:args=>agentRuntime({...args,files,cloud,connections,gmail,canUseComputer:()=>!humanComputers.has(args.conversationId),t3:service._conversation(args.conversationId).messaging&&!service._conversation(args.conversationId).messaging.allowTools?undefined:t3Agent(args),schedules:service._conversation(args.conversationId).messaging&&!service._conversation(args.conversationId).messaging.allowTools?undefined:scheduleAgent(args),pages:service._conversation(args.conversationId).messaging?undefined:pages?.tools({botId:args.bot.id,conversationId:args.conversationId})}) });
   await service.init();
   try{const {MessagingRouter}=await import('./messaging-router.mjs');messaging=await new MessagingRouter({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,service,onChange:()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:slack-changed');}}).init();}catch{messagingStartupError='Saved Slack settings could not be opened. Existing data was preserved.';}
   const [{PageStore},{PageController},{PageBrowser},{pageDocument,pageStandalone,PAGE_CSP}]=await Promise.all([import('./pages.mjs'),import('./page-controller.mjs'),import('./page-browser.mjs'),import('./page-document.mjs')]);
@@ -225,6 +226,9 @@ app.whenReady().then(async () => {
   for(const [name,operation]of Object.entries({status:()=>messaging?messaging.status():{connected:false,state:messagingStartupError},manifest:()=>SLACK_MANIFEST,configure:value=>messaging.configure(value),link:()=>messaging.linkCode(),channels:()=>messaging.channels(),disconnect:()=>messaging.disconnect(),review:()=>messaging.reviewDeliveries()}))ipcMain.handle('orbit:slack-'+name,(e,value)=>{authorized(e);if(!messaging&&name!=='status'&&name!=='manifest')throw Error(messagingStartupError);return operation(value);});
   ipcMain.handle('orbit:connections', async e => {authorized(e);return connections.status();});
   ipcMain.handle('orbit:configure-connections', async (e,value) => {authorized(e);return connections.configure(value);});
+  ipcMain.handle('orbit:gmail-status', e => {authorized(e);return gmail.status();});
+  ipcMain.handle('orbit:gmail-connect', async (e,value) => {authorized(e);return gmail.connect(value);});
+  ipcMain.handle('orbit:gmail-disconnect', async e => {authorized(e);return gmail.disconnect();});
   ipcMain.handle('orbit:connection-catalog', async (e,search) => {authorized(e);return connections.catalog(search);});
   ipcMain.handle('orbit:connect-app', async (e,slug) => {authorized(e);const url=await connections.connect(slug);await shell.openExternal(url);return true;});
   const t3Scope=value=>{const c=service._conversation(value?.conversationId);service._threadOpen(c);return c;};

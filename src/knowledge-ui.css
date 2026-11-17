@@ -1,15 +1,15 @@
 #workspace-knowledge { padding: 22px; overflow-y: auto; }
 #workspace-knowledge h3 { font-size: 16px; font-weight: 550; margin: 0 0 10px; }
-#workspace-knowledge h4 { font-size: 13px; color: var(--muted, #999); font-weight: 500; margin: 26px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
-#workspace-knowledge details { border: 1px solid var(--border, #333); border-radius: 18px; padding: 16px; margin: 12px 0; }
+#workspace-knowledge h4 { font-size: 13px; color: var(--gratis-muted,#999); font-weight: 500; margin: 26px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+#workspace-knowledge details { border: 1px solid var(--gratis-line,#333); border-radius: 18px; padding: 16px; margin: 12px 0; }
 #workspace-knowledge summary { cursor: pointer; font-size: 14px; }
 #workspace-knowledge form { display: grid; gap: 14px; margin-top: 14px; }
-#workspace-knowledge label { display: grid; gap: 6px; color: var(--muted, #aaa); font-size: 13px; }
-#workspace-knowledge input:not([type=checkbox]),#workspace-knowledge select,#workspace-knowledge textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px 12px; color: var(--text, #eee); background: var(--surface, #222); border: 1px solid var(--border, #3a3a3a); border-radius: 11px; font: inherit; font-size: 14px; }
+#workspace-knowledge label { display: grid; gap: 6px; color: var(--gratis-muted,#999); font-size: 13px; }
+#workspace-knowledge input:not([type=checkbox]),#workspace-knowledge select,#workspace-knowledge textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px 12px; color: var(--gratis-text,#e6e6e6); background: var(--gratis-field,#242424); border: 1px solid var(--gratis-line,#333); border-radius: 11px; font: inherit; font-size: 14px; }
 #workspace-knowledge textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
 #workspace-knowledge :focus-visible { outline: 2px solid #609bdf; outline-offset: 2px; }
 #workspace-knowledge .schedule-card details { padding: 8px 12px; margin: 10px 0 0; border-radius: 12px; }
-#workspace-knowledge .schedule-card summary { font-size: 12px; color: var(--muted, #999); }
+#workspace-knowledge .schedule-card summary { font-size: 12px; color: var(--gratis-muted,#999); }
 #workspace-knowledge .schedule-card select { margin-top: 10px; }
 .knowledge-bots { display: grid; gap: 6px; margin: 8px 0; }
 #knowledge-error { color: #ff777b; font-size: 13px; }

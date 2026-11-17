@@ -1,18 +1,18 @@
 #workspace-objectives { padding: 22px; overflow-y: auto; }
 #workspace-objectives h3 { font-size: 16px; font-weight: 550; margin: 0 0 10px; }
-#workspace-objectives details { border: 1px solid var(--border, #333); border-radius: 18px; padding: 16px; margin: 0 0 20px; }
+#workspace-objectives details { border: 1px solid var(--gratis-line,#333); border-radius: 18px; padding: 16px; margin: 0 0 20px; }
 #workspace-objectives summary { cursor: pointer; font-size: 16px; }
 #objective-form { display: grid; gap: 16px; margin-top: 18px; }
-#objective-form label { display: grid; gap: 8px; color: var(--muted, #aaa); font-size: 13px; }
-#objective-form input,#objective-form select,#objective-form textarea,.objective-log input { box-sizing: border-box; width: 100%; min-width: 0; padding: 11px 13px; color: var(--text, #eee); background: var(--surface, #222); border: 1px solid var(--border, #3a3a3a); border-radius: 11px; font: inherit; font-size: 14px; }
+#objective-form label { display: grid; gap: 8px; color: var(--gratis-muted,#999); font-size: 13px; }
+#objective-form input,#objective-form select,#objective-form textarea,.objective-log input { box-sizing: border-box; width: 100%; min-width: 0; padding: 11px 13px; color: var(--gratis-text,#e6e6e6); background: var(--gratis-field,#242424); border: 1px solid var(--gratis-line,#333); border-radius: 11px; font: inherit; font-size: 14px; }
 #objective-form textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
 #objective-form :focus-visible,.objective-log :focus-visible { outline: 2px solid #609bdf; outline-offset: 2px; }
 .objective-metric { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; }
 .objective-card progress { width: 100%; height: 8px; margin: 10px 0 0; }
 .objective-card details { padding: 8px 12px; margin: 10px 0 0; border-radius: 12px; }
-.objective-card summary { font-size: 12px; color: var(--muted, #999); }
+.objective-card summary { font-size: 12px; color: var(--gratis-muted,#999); }
 .objective-log { display: grid; grid-template-columns: 1fr 2fr auto; gap: 8px; margin-top: 12px; }
-.objective-status { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border, #3a3a3a); vertical-align: middle; }
+.objective-status { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--gratis-line,#333); vertical-align: middle; }
 .objective-at_risk { color: #e0a64a; border-color: #e0a64a; }
 .objective-done { color: #5fb878; border-color: #5fb878; }
 #objectives-error { color: #ff777b; font-size: 13px; }

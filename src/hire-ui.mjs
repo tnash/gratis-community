@@ -1,7 +1,7 @@
 const $=id=>document.getElementById(id);
 export function setupHire({api,onHired}){
  const dialog=$('hire-dialog');
- let step='sentence',questions=[],draft=null,pending=false,avatar={shape:'flower',color:'orange'};
+ let step='sentence',questions=[],draft=null,collect=null,pending=false,avatar={shape:'flower',color:'orange'};
  const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
  const fail=e=>{$('hire-error').textContent=e.message;$('hire-error').hidden=false;};
  const section=(title,items)=>{if(!items.length)return null;const s=el('section','hire-section');s.append(el('h3',null,title),...items);return s;};
@@ -19,14 +19,14 @@ export function setupHire({api,onHired}){
   for(const [title,items] of [['Goals it will own',objectives],['Routines',routines],['Budget',budget],['Approval rules',policies]]){const s=section(title,items.map(i=>i.label));if(s)parts.push(s);}
   if(d.suggestedApps.length){const s=el('section','hire-section');s.append(el('h3',null,'Apps it would need'),el('p','schedule-note',d.suggestedApps.join(', ')+'. Connect them after hiring.'));parts.push(s);}
   $('hire-draft').replaceChildren(...parts);$('hire-draft').hidden=false;
-  draft.collect=()=>({...d,name:name.value,instructions:instr.value,objectives:objectives.map(i=>i.get()).filter(Boolean),routines:routines.map(i=>i.get()).filter(Boolean),budget:budget[0]?.get()??null,policies:policies.map(i=>i.get()).filter(Boolean)});
+  collect=()=>({...d,name:name.value,instructions:instr.value,objectives:objectives.map(i=>i.get()).filter(Boolean),routines:routines.map(i=>i.get()).filter(Boolean),budget:budget[0]?.get()??null,policies:policies.map(i=>i.get()).filter(Boolean)});
  }
  function paint(){
   $('hire-sentence-row').hidden=step!=='sentence';$('hire-questions').hidden=step!=='questions';$('hire-draft').hidden=step!=='draft';
   $('hire-submit').textContent=pending?'Working…':step==='draft'?'Hire':step==='questions'?'Draft':'Draft';
   $('hire-submit').disabled=pending||(step==='sentence'&&!$('hire-sentence').value.trim());$('hire-cancel').disabled=pending;$('hire-sentence').disabled=pending;
  }
- function open(choice){if(choice)avatar=choice;step='sentence';questions=[];draft=null;pending=false;$('hire-sentence').value='';$('hire-error').hidden=true;$('hire-questions').replaceChildren();$('hire-draft').replaceChildren();paint();dialog.showModal();$('hire-sentence').focus();}
+ function open(choice){if(choice)avatar=choice;step='sentence';questions=[];draft=null;pending=false;$('hire-sentence').value='';$('hire-error').hidden=true;$('hire-note').hidden=true;$('hire-questions').replaceChildren();$('hire-draft').replaceChildren();paint();dialog.showModal();$('hire-sentence').focus();}
  $('hire-sentence').oninput=paint;
  const close=()=>{if(!pending)dialog.close();};
  $('hire-cancel').onclick=close;dialog.querySelector('.hire-close').onclick=close;dialog.addEventListener('cancel',e=>{if(pending)e.preventDefault();});
@@ -34,13 +34,13 @@ export function setupHire({api,onHired}){
   e.preventDefault();if(pending)return;pending=true;$('hire-error').hidden=true;paint();
   try{
    if(step==='draft'){
-    const state=await api.hireApply({draft:draft.collect(),avatarShape:avatar.shape,avatarColor:avatar.color});dialog.close();onHired(state);return;
+    const state=await api.hireApply({draft:collect(),avatarShape:avatar.shape,avatarColor:avatar.color});dialog.close();onHired(state);return;
    }
    const answers=[...$('hire-questions').querySelectorAll('input')].map(i=>i.value.trim()).filter(Boolean);
    const result=await api.hireDraft({sentence:$('hire-sentence').value,answers});
    if(result.error)throw new Error(result.error);
    if(result.questions){step='questions';$('hire-questions').replaceChildren(...result.questions.map(q=>{const l=el('label',null,q),i=el('input');i.maxLength=500;l.append(i);return l;}));}
-   else{draft=result.draft;if(result.fallback){$('hire-error').textContent='No Claude or Codex login is connected, so this is a plain starting point.';$('hire-error').hidden=false;}step='draft';renderDraft();}
+   else{draft=result.draft;$('hire-note').textContent=result.fallback?'No Claude or Codex login is connected, so this is a plain starting point.':'';$('hire-note').hidden=!result.fallback;step='draft';renderDraft();}
   }catch(error){fail(error);}finally{pending=false;paint();}
  };
  return{open};

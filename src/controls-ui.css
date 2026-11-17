@@ -1,11 +1,11 @@
 #workspace-controls { padding: 22px; overflow-y: auto; }
 #workspace-controls h3 { font-size: 16px; font-weight: 550; margin: 0 0 10px; }
-#workspace-controls h4 { font-size: 13px; color: var(--muted, #999); font-weight: 500; margin: 26px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
-#workspace-controls details { border: 1px solid var(--border, #333); border-radius: 18px; padding: 16px; margin: 12px 0; }
+#workspace-controls h4 { font-size: 13px; color: var(--gratis-muted,#999); font-weight: 500; margin: 26px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+#workspace-controls details { border: 1px solid var(--gratis-line,#333); border-radius: 18px; padding: 16px; margin: 12px 0; }
 #workspace-controls summary { cursor: pointer; font-size: 14px; }
 #workspace-controls form { display: grid; gap: 12px; margin-top: 14px; }
-#workspace-controls label { display: grid; gap: 6px; color: var(--muted, #aaa); font-size: 13px; }
-#workspace-controls input,#workspace-controls select { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px 12px; color: var(--text, #eee); background: var(--surface, #222); border: 1px solid var(--border, #3a3a3a); border-radius: 11px; font: inherit; font-size: 14px; }
+#workspace-controls label { display: grid; gap: 6px; color: var(--gratis-muted,#999); font-size: 13px; }
+#workspace-controls input,#workspace-controls select { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px 12px; color: var(--gratis-text,#e6e6e6); background: var(--gratis-field,#242424); border: 1px solid var(--gratis-line,#333); border-radius: 11px; font: inherit; font-size: 14px; }
 #workspace-controls :focus-visible { outline: 2px solid #609bdf; outline-offset: 2px; }
 .controls-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 #controls-error { color: #ff777b; font-size: 13px; }

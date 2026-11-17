@@ -5,7 +5,7 @@ import {COMPUTER_ACTIONS} from './cloud-computer.mjs';
 import {searchWeb,readWebpage,publicURL} from './web-tools.mjs';
 
 export const defaultCapabilities={web:true,files:true,computer:true,connections:true};
-export async function agentRuntime({bot,conversationId,files,cloud,connections,gmail,signal,onActivity,approve,collaboration,memory,t3,schedules,pages,requestComputerHelp,canUseComputer=()=>true}) {
+export async function agentRuntime({bot,conversationId,files,cloud,connections,gmail,signal,onActivity,approve,collaboration,memory,t3,schedules,objectives,pages,requestComputerHelp,canUseComputer=()=>true}) {
   const capabilities={...defaultCapabilities,...bot.capabilities},tools=[],definitions=[],mcpServers={};
   const register=(name,description,schema,handler)=>{const wrapped=async input=>{
     const id=crypto.randomUUID();onActivity({id,name,input:name.endsWith('_memory')?{scope:input.scope,query:input.query,manual:true}:traceValue(input),status:'running',startedAt:Date.now()});
@@ -26,6 +26,13 @@ export async function agentRuntime({bot,conversationId,files,cloud,connections,g
     register('create_schedule','Create a recurring task only when the user explicitly requests it. Weekly uses local HH:mm and days 0=Sunday to 6=Saturday (all seven for daily); interval uses minutes (minimum 15); cron uses a five-field expression such as 0 9 1 * * for the first of each month at 09:00. Use an IANA timezone (this computer: '+Intl.DateTimeFormat().resolvedOptions().timeZone+'). The bot runs with its current memory and connected apps and posts results here. Requires Gratis running and this computer awake. Closing its window keeps enabled schedules running; quitting stops them until reopen. Do not promise background cloud execution. Report the saved next run and timezone.',{title:z.string().max(120),prompt:z.string().max(16000),timing},async input=>text(await schedules.create(input)));
     register('update_schedule','Edit or pause/resume an existing schedule in this chat only on the user’s request. Read its ID with list_schedules first.',{id:z.string(),enabled:z.boolean().optional(),title:z.string().max(120).optional(),prompt:z.string().max(16000).optional(),timing:timing.optional()},async input=>text(await schedules.update(input)));
     register('delete_schedule','Delete a recurring task only when the user asks to remove it. Does not delete earlier results.',{id:z.string()},async input=>text(await schedules.remove(input)));
+  }
+  if(objectives){
+   const metric=z.object({name:z.string().max(80),unit:z.string().max(24).optional(),start:z.number().optional(),target:z.number()});
+   register('list_objectives','List the objectives you own, with ids, targets, current values and recent notes.',{},async()=>text(objectives.list()));
+   register('report_objective_progress','Record real progress on an objective you own: a new metric value and/or a short note. Only report what you verified; the user can see and edit these entries. This cannot complete or drop an objective.',{id:z.string(),value:z.number().optional(),note:z.string().max(1000).optional()},async input=>text(await objectives.report(input)));
+   register('flag_objective_risk','Mark an objective you own as at risk, with a note explaining why.',{id:z.string(),note:z.string().min(1).max(1000)},async input=>text(await objectives.flagRisk(input)));
+   register('propose_objective','Suggest a new objective for the user to approve. It stays inactive until they accept it, so propose only goals the user has discussed or would plausibly want. Deadline is YYYY-MM-DD.',{title:z.string().min(1).max(120),description:z.string().max(2000).optional(),metric:metric.optional(),deadline:z.string().optional()},async input=>text(await objectives.propose(input)));
   }
   if(t3&&capabilities.connections){
     register('start_t3_task','Delegate a concrete task to the T3 project chosen for this bot. Work continues independently when Gratis closes. Returns a saved job ID immediately; do not start duplicates or repeatedly poll. The task result will be delivered to this chat. Include all necessary instructions, constraints and verification criteria; private chat history is not sent automatically.',{title:z.string().min(1).max(255),prompt:z.string().min(1).max(100000)},async input=>text(await t3.submit(input)));
@@ -75,5 +82,5 @@ export async function agentRuntime({bot,conversationId,files,cloud,connections,g
   }
   if(tools.length)mcpServers.gratis=createSdkMcpServer({name:'gratis',version:'1.0.0',tools});
   if(capabilities.connections&&connections.status().composio)mcpServers.composio=await connections.mcp();
-  return {mcpServers,definitions,onActivity,collaboration,memory,t3,schedules,pages:capabilities.files?pages:undefined,web:capabilities.web,capabilities,workspaceRoot:files.root(bot.id),approve,signature:JSON.stringify({capabilities,participants:collaboration?.members.map(m=>m.id),memory:!!memory,schedules:!!schedules,pages:!!pages,cloud:connections.status().cloud,composio:connections.status().composio,gmail:gmail?.status().connected,t3:t3?.binding})};
+  return {mcpServers,definitions,onActivity,collaboration,memory,t3,schedules,pages:capabilities.files?pages:undefined,web:capabilities.web,capabilities,workspaceRoot:files.root(bot.id),approve,signature:JSON.stringify({capabilities,participants:collaboration?.members.map(m=>m.id),memory:!!memory,schedules:!!schedules,objectives:!!objectives,pages:!!pages,cloud:connections.status().cloud,composio:connections.status().composio,gmail:gmail?.status().connected,t3:t3?.binding})};
 }

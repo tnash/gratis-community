@@ -48,12 +48,12 @@ export class Schedules {
  snapshot(conversationId){return structuredClone(this.items.filter(i=>!conversationId||i.conversationId===conversationId));}
  async save(){if(!this.opened)throw new Error('Storage did not open safely. Existing files were preserved.');const body=JSON.stringify({version:1,items:this.items});const write=async()=>{await assertStorageCompatible(this.directory);await mkdir(this.directory,{recursive:true,mode:0o700});const tmp=join(this.directory,'.schedules-'+randomUUID());await writeFile(tmp,await this.encrypt(body),{mode:0o600});await rename(tmp,join(this.directory,'schedules.secure'));};this.persist=this.persist.then(write,write);await this.persist;this.onChange();}
  get(id,conversationId){const item=this.items.find(i=>i.id===id&&i.conversationId===conversationId);if(!item)throw new Error('This schedule does not belong to this chat.');return item;}
- async create({conversationId,title,prompt,timing,sourceMessageId}){
+ async create({conversationId,title,prompt,timing,sourceMessageId,objectiveId}){
   const c=this.service._conversation(conversationId);if(c.parentThreadId)throw new Error('Create schedules in the shared chat.');
   title=required(title,'a schedule name',120);prompt=required(prompt,'a task',16000);timing=validateTiming(timing);
   if(this.items.filter(i=>i.conversationId===conversationId).length>=30)throw new Error('This chat already has 30 schedules.');
   const prior=sourceMessageId&&this.items.find(i=>i.conversationId===conversationId&&i.sourceMessageId===sourceMessageId&&i.prompt===prompt&&JSON.stringify(i.timing)===JSON.stringify(timing));if(prior)return structuredClone(prior);
-  const item={id:randomUUID(),conversationId,botId:c.botId,title,prompt,timing,sourceMessageId,enabled:true,nextRunAt:nextRun(timing,this.now()),createdAt:this.now(),runs:[]};this.items.push(item);await this.save();return structuredClone(item);
+  const item={id:randomUUID(),conversationId,botId:c.botId,title,prompt,timing,sourceMessageId,...(objectiveId?{objectiveId}:{}),enabled:true,nextRunAt:nextRun(timing,this.now()),createdAt:this.now(),runs:[]};this.items.push(item);await this.save();return structuredClone(item);
  }
  async update({id,conversationId,enabled,title,prompt,timing}){
   const item=this.get(id,conversationId),editing=title!==undefined||prompt!==undefined||timing!==undefined;

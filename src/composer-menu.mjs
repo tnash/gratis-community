@@ -5,6 +5,7 @@ export function setupComposerMenu({api,getState,run,workspace}){
   function close(){menu.hidePopover();}
   function row(label,description,action){const button=document.createElement('button');button.type='button';button.setAttribute('role','menuitem');const strong=document.createElement('strong');strong.textContent=label;const small=document.createElement('small');small.textContent=description;button.append(strong,small);button.onclick=()=>{close();action();};menu.append(button);}
   row('Add files','Attach documents and images',()=>run(()=>api.attachFiles({conversationId:getState().activeConversationId})));
+  row('Controls','Pause this bot, set budgets and approval rules',()=>workspace.openControls());
   row('Objectives','Give this bot a goal to own and report on',()=>workspace.openObjectives());
   row('Scheduled tasks','Run daily checks with this bot and its apps',()=>workspace.openSchedules());
   row('T3 tasks','Run or continue an agent in your project',()=>workspace.openT3());

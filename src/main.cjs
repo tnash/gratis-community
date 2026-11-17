@@ -19,7 +19,7 @@ const controlState=value=>({...value,control:humanComputers.has(value.conversati
 const computerSnapshot=id=>{const snapshot=cloud.snapshot(id);return {...snapshot,state:controlState(snapshot.state)};};
 let messaging,messagingStartupError,secureStorageAccess;let rendererPagesReady=false;let pendingPageLink;let deliverPageLink;app.on('open-url',(event,url)=>{event.preventDefault();if(deliverPageLink)deliverPageLink(url);else pendingPageLink=url;});
 let phonePage=null,phonePageSelection=0,phonePagesMeta=[],refreshPhonePages;let pages,pageStore,pageBrowser;const pageTickets=new Map();
-let objectives,gmail,mobileTeamSelected,teamRefresh,teamRefreshVersion=0,teamConnection,teamExecutor,releaseDataLock, window, service, connections, files, cloud, signIn, memory, t3Connection, t3Tasks, t3Host, schedules, mobile, mobileProviders, mobileDictation, computerControl, mobileComputer, closing = false, finishDraftFlush, voiceTask;
+let controls,objectives,gmail,mobileTeamSelected,teamRefresh,teamRefreshVersion=0,teamConnection,teamExecutor,releaseDataLock, window, service, connections, files, cloud, signIn, memory, t3Connection, t3Tasks, t3Host, schedules, mobile, mobileProviders, mobileDictation, computerControl, mobileComputer, closing = false, finishDraftFlush, voiceTask;
 app.on('activate',()=>{if(window&&!window.isDestroyed()){window.show();window.focus();}});
 app.on('second-instance', () => { if (window && !window.isDestroyed()) { window.show(); window.focus(); } });
 async function shutdown() {
@@ -34,7 +34,7 @@ async function shutdown() {
   }
   const activeVoice = voiceTask;
   activeVoice?.controller.abort(new DOMException('App closed', 'AbortError'));
-  try { await messaging?.close(); mobileComputer?.close(); await mobileDictation?.close(); await mobile?.close(); await activeVoice?.promise?.catch(() => {}); await signIn?.cancel({preserve:true}); await schedules?.close(); await objectives?.close(); await t3Tasks?.close(); await t3Connection?.close(); await service?.close(); await teamExecutor?.close();await teamConnection?.close(); await pageStore?.close();await pageBrowser?.close(); await cloud?.close(); } finally { await releaseDataLock?.(); app.exit(0); }
+  try { await messaging?.close(); mobileComputer?.close(); await mobileDictation?.close(); await mobile?.close(); await activeVoice?.promise?.catch(() => {}); await signIn?.cancel({preserve:true}); await schedules?.close(); await objectives?.close(); await controls?.close(); await t3Tasks?.close(); await t3Connection?.close(); await service?.close(); await teamExecutor?.close();await teamConnection?.close(); await pageStore?.close();await pageBrowser?.close(); await cloud?.close(); } finally { await releaseDataLock?.(); app.exit(0); }
 }
 const actions = ['createBot', 'deleteBot', 'selectBot', 'newConversation', 'selectConversation', 'setDraft',
   'createThread','renameThread','updateThreadMembers','pinThread','deleteThread','updateSettings', 'updateBot', 'duplicateBot', 'respondApproval', 'updateQueue', 'send', 'stop', 'retry'];
@@ -124,6 +124,8 @@ app.whenReady().then(async () => {
   try{const config=JSON.parse(await fs.readFile(path.join(dataDir,'mobile-provision.json'),'utf8'));if(!mobile.data.pairing)await mobile.configure(config);await fs.unlink(path.join(dataDir,'mobile-provision.json'));}catch(e){if(e.code!=='ENOENT')console.error('Mobile provisioning did not complete.');}
   const {Objectives}=await import('./objectives.mjs');
   objectives=await new Objectives({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,service,schedules,onChange:()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:objectives-changed');}}).init();service.objectives=objectives;
+  const {Controls}=await import('./controls.mjs');
+  controls=await new Controls({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,service,onChange:()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:controls-changed');}}).init();service.controls=controls;
   schedules.start();
   t3Tasks.start();
   for(const c of service.snapshot().conversations)if(c.computerPause)setHumanControl(c.id,true);
@@ -236,6 +238,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('orbit:connection-catalog', async (e,search) => {authorized(e);return connections.catalog(search);});
   ipcMain.handle('orbit:connect-app', async (e,slug) => {authorized(e);const url=await connections.connect(slug);await shell.openExternal(url);return true;});
   const t3Scope=value=>{const c=service._conversation(value?.conversationId);service._threadOpen(c);return c;};
+  for(const [name,operation]of Object.entries({view:()=>controls.snapshot(),setPaused:v=>controls.setPaused(v?.botId,v?.paused===true),saveBudget:v=>controls.saveBudget(v),removeBudget:v=>controls.removeBudget(v),savePolicy:v=>controls.savePolicy(v),removePolicy:v=>controls.removePolicy(v)}))ipcMain.handle('orbit:controls-'+name,async(e,value)=>{authorized(e);return operation(value);});
   for(const [name,operation]of Object.entries({view:async()=>{await objectives.reconcile();return objectives.snapshot();},create:v=>objectives.create(v),update:v=>objectives.update(v),remove:v=>objectives.remove(v),report:v=>objectives.report({...v,author:'user'})}))ipcMain.handle('orbit:objectives-'+name,async(e,value)=>{authorized(e);return operation(value);});
   for(const [name,operation]of Object.entries({view:v=>schedules.snapshot(v.conversationId),create:v=>schedules.create(v),update:v=>schedules.update(v),remove:v=>schedules.remove(v),run:v=>schedules.runNow(v)}))ipcMain.handle('orbit:schedules-'+name,async(e,value)=>{authorized(e);service._conversation(value?.conversationId);return operation(value);});
   ipcMain.handle('orbit:t3-view',(e,value)=>{authorized(e);const c=t3Scope(value);return{connection:t3Connection.snapshot(),binding:t3Connection.data.bindings?.[c.botId]||null,jobs:t3Tasks.snapshot(c.id)};});

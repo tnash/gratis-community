@@ -54,6 +54,8 @@ api.onT3Changed=cb=>{const listener=()=>cb();ipcRenderer.on('orbit:t3-changed',l
 for(const name of ['view','create','update','remove','run'])api['schedules'+name[0].toUpperCase()+name.slice(1)]=value=>invoke('orbit:schedules-'+name,value);
 for(const name of ['view','create','update','remove','report'])api['objectives'+name[0].toUpperCase()+name.slice(1)]=value=>invoke('orbit:objectives-'+name,value);
 api.onObjectivesChanged=cb=>{const listener=()=>cb();ipcRenderer.on('orbit:objectives-changed',listener);return()=>ipcRenderer.removeListener('orbit:objectives-changed',listener);};
+for(const name of ['view','setPaused','saveBudget','removeBudget','savePolicy','removePolicy'])api['controls'+name[0].toUpperCase()+name.slice(1)]=value=>invoke('orbit:controls-'+name,value);
+api.onControlsChanged=cb=>{const listener=()=>cb();ipcRenderer.on('orbit:controls-changed',listener);return()=>ipcRenderer.removeListener('orbit:controls-changed',listener);};
 api.onSchedulesChanged=cb=>{const listener=()=>cb();ipcRenderer.on('orbit:schedules-changed',listener);return()=>ipcRenderer.removeListener('orbit:schedules-changed',listener);};
 for(const name of ['status','configure','connect','confirm','disconnect','qr'])api[name==='qr'?'mobileQR':'mobile'+name[0].toUpperCase()+name.slice(1)]=value=>invoke('orbit:mobile-'+name,value);
 api.onMobileChanged=cb=>{const listener=()=>cb();ipcRenderer.on('orbit:mobile-changed',listener);return()=>ipcRenderer.removeListener('orbit:mobile-changed',listener);};

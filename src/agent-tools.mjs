@@ -5,11 +5,11 @@ import {COMPUTER_ACTIONS} from './cloud-computer.mjs';
 import {searchWeb,readWebpage,publicURL} from './web-tools.mjs';
 
 export const defaultCapabilities={web:true,files:true,computer:true,connections:true};
-export async function agentRuntime({bot,conversationId,files,cloud,connections,gmail,signal,onActivity,approve,collaboration,memory,t3,schedules,objectives,pages,requestComputerHelp,canUseComputer=()=>true}) {
+export async function agentRuntime({bot,conversationId,files,cloud,connections,gmail,signal,onActivity,approve,collaboration,memory,t3,schedules,objectives,gate,pages,requestComputerHelp,canUseComputer=()=>true}) {
   const capabilities={...defaultCapabilities,...bot.capabilities},tools=[],definitions=[],mcpServers={};
   const register=(name,description,schema,handler)=>{const wrapped=async input=>{
     const id=crypto.randomUUID();onActivity({id,name,input:name.endsWith('_memory')?{scope:input.scope,query:input.query,manual:true}:traceValue(input),status:'running',startedAt:Date.now()});
-    try{signal.throwIfAborted();if(['computer','save_cloud_file'].includes(name)&&!canUseComputer())throw new Error('The user has control of the computer. Wait for them to give control back.');const result=await handler(input);onActivity({id,name,status:result.isError?'error':'complete',result:toolResultCheckpoint(result),finishedAt:Date.now()});const {checkpoint,...response}=result;return response;}
+    try{signal.throwIfAborted();const rule=gate?.(name,input);if(rule?.action==='deny')throw new Error('Blocked by your rule: '+rule.note);if(rule&&!await approve('Rule: '+rule.note+' ('+name+')',traceValue(input)))return text('The user declined this action.');if(['computer','save_cloud_file'].includes(name)&&!canUseComputer())throw new Error('The user has control of the computer. Wait for them to give control back.');const result=await handler(input);onActivity({id,name,status:result.isError?'error':'complete',result:toolResultCheckpoint(result),finishedAt:Date.now()});const {checkpoint,...response}=result;return response;}
     catch(error){onActivity({id,name,status:signal.aborted?'cancelled':'error',detail:String(error.message).slice(0,500),finishedAt:Date.now()});return {isError:true,content:[{type:'text',text:String(error.message)}]};}
   };tools.push(tool(name,description,schema,wrapped));definitions.push({name,description,schema:z.object(schema),handler:wrapped});};
   const text=value=>({content:[{type:'text',text:typeof value==='string'?value:JSON.stringify(value)}]});

@@ -281,10 +281,13 @@ export class ChatService {
     try { await this._changed(); }
     catch (error) { budget.close();this.tasks.delete(c.id); task.started(); assistant.status = 'error'; assistant.error = error.message; throw error; }
     let broadcast;const respondAll=()=>{if(!resumeMessage&&!broadcast&&c.kind==='group'&&!c.parentThreadId&&!controller.signal.aborted)broadcast=this.teams.respondSelected(c,assistant,controller.signal);};
+    let runStartedAt=0;
     task.promise = (async () => {
       void this.diagnostics.record({event:"run-start",provider:settings.provider});
       try {
         controller.signal.throwIfAborted();
+        const blocked=this.controls?.runStart(c.botId);if(blocked?.paused)throw new Error(blocked.paused);if(blocked?.limit){budget.stop(blocked.limit);controller.signal.throwIfAborted();}
+        if(this.controls)runStartedAt=Date.now();
         const workspaceDir = join(this.store.directory, 'claude-workspaces', createHash('sha256').update(c.id).digest('hex'));
         if (!c.messaging && bot.promptMode === 'auto' && !bot.promptGenerated) {
           assistant.phase='setup'; await this._changed();
@@ -292,12 +295,12 @@ export class ChatService {
           await abortable(this._prepareBotPrompt(this._bot(c.botId),firstUser?.setupIntention||firstUser?.content||'',settings,workspaceDir,controller.signal,firstUser?.setupSource||{conversationId:c.id,messageId:firstUser?.id}),controller.signal);
           bot=structuredClone(this._bot(c.botId));delete assistant.phase;await this._changed();
         }
-        const onActivity = activity => {if(controller.signal.aborted)return;budget.activity(activity);const entries=assistant.activities??=[];let current=entries.find(a=>a.id===activity.id);if(current)Object.assign(current,activity);else if(activity.name){if(entries.length>=limits.toolCalls+50){budget.stop('Paused at the activity record limit.');return;}entries.push(activity);}else return;if((activity.name||current?.name)==='recall_memory'&&activity.result?.ids)assistant.memoryRefs=[...new Set([...(assistant.memoryRefs||[]),...activity.result.ids])];void this._changed().catch(()=>{});};
+        const counted=new Set();const onActivity = activity => {if(controller.signal.aborted)return;budget.activity(activity);if(activity.status==='running'&&activity.name&&!counted.has(activity.id)){counted.add(activity.id);const over=this.controls?.recordTool(c.botId,activity.name);if(over)budget.stop(over);}const entries=assistant.activities??=[];let current=entries.find(a=>a.id===activity.id);if(current)Object.assign(current,activity);else if(activity.name){if(entries.length>=limits.toolCalls+50){budget.stop('Paused at the activity record limit.');return;}entries.push(activity);}else return;if((activity.name||current?.name)==='recall_memory'&&activity.result?.ids)assistant.memoryRefs=[...new Set([...(assistant.memoryRefs||[]),...activity.result.ids])];void this._changed().catch(()=>{});};
         await turnMemory?.checkpoint(c,assistant,'working');
         const memoryPacket=turnMemory?await abortable(turnMemory.contextPacket(c.id,history.findLast(m=>m.role==='user')?.content||''),controller.signal):{context:'',ids:[]};assistant.memoryRefs=memoryPacket.ids;
         if(memoryPacket.ids.length)onActivity({id:'memory-'+assistant.id,name:'recall_memory',status:'complete',startedAt:Date.now(),finishedAt:Date.now(),result:{count:memoryPacket.ids.length,ids:memoryPacket.ids},input:{automatic:true}});
         const memoryTools=turnMemory?{recall:input=>turnMemory.search(c.id,input),learn:input=>turnMemory.learn(c.id,{...input,messageId:this.promptMessages(c).findLast(m=>m.role==='user')?.id})}:undefined;
-        const runtime=this.runtimeFactory&&['claude','codex'].includes(settings.provider)?await abortable(this.runtimeFactory({bot,conversationId:c.id,sourceMessageId:this.promptMessages(c).findLast(m=>m.role==='user')?.id,signal:controller.signal,onActivity,memory:memoryTools,collaboration:this.teams.forConversation(c,bot,controller.signal),requestComputerHelp:input=>this.requestComputerHelp(c,assistant,input,controller.signal),approve:(name,input)=>this._approve(assistant,name,input,controller.signal)}),controller.signal):undefined;
+        const runtime=this.runtimeFactory&&['claude','codex'].includes(settings.provider)?await abortable(this.runtimeFactory({bot,conversationId:c.id,sourceMessageId:this.promptMessages(c).findLast(m=>m.role==='user')?.id,signal:controller.signal,onActivity,memory:memoryTools,collaboration:this.teams.forConversation(c,bot,controller.signal),requestComputerHelp:input=>this.requestComputerHelp(c,assistant,input,controller.signal),gate:(name,input)=>this.controls?.gate(c.botId,name,input)||null,approve:async(name,input)=>{const g=this.controls?.gate(c.botId,name,input);if(g?.action==='deny')return false;const ok=await this._approve(assistant,name,g?{...input,policy:g.note}:input,controller.signal);this.controls?.log('approval',c.botId,(ok?'Approved ':'Declined ')+name,ok?'approved':'declined');return ok;}}),controller.signal):undefined;
         const onMetadata = value => { if(controller.signal.aborted)return; if(value.codexSession!==undefined)c.codexSession=value.codexSession; if (value.claudeSession !== undefined) c.claudeSession = value.claudeSession; if (value.usage) assistant.usage = value.usage; if(value.activity)onActivity(value.activity); };
         let continuationStarted=false;
         const stream=this.backend({ settings, bot, messages: history, signal: controller.signal, workspaceDir, claudeSession: c.claudeSession, codexSession:c.codexSession, onMetadata, runtime,turnContext:memoryPacket.context,contextEpoch:memoryPacket.epoch });
@@ -322,7 +325,7 @@ export class ChatService {
         assistant.limitReached=controller.signal.reason instanceof RunLimitError;
         assistant.error = assistant.limitReached ? controller.signal.reason.message : controller.signal.aborted ? 'Response stopped.' : String(error?.message ?? error);
       } finally {
-        budget.close();void this.diagnostics.record({event:"run-end",provider:settings.provider,status:assistant.status,reason:assistant.limitReached?"limit":controller.signal.aborted?"user":assistant.status==="error"?"provider":undefined});
+        budget.close();if(runStartedAt)this.controls?.runEnd(c.botId,assistant.status,Date.now()-runStartedAt);void this.diagnostics.record({event:"run-end",provider:settings.provider,status:assistant.status,reason:assistant.limitReached?"limit":controller.signal.aborted?"user":assistant.status==="error"?"provider":undefined});
         if(!controller.signal.aborted)respondAll();if(broadcast&&!(controller.signal.aborted&&c.computerPause))await broadcast;
         for(const activity of assistant.activities||[])if(activity.status==='running'||activity.status==='approval')activity.status='cancelled';
         c.updatedAt = Date.now(); this.tasks.delete(c.id);

@@ -12,7 +12,8 @@ async function boot(t){
  const dir=await mkdtemp(join(tmpdir(),'gratis-runtime-'));
  const keys=await openKeystore(dir,PASS,{create:true});
  const runtime=await createRuntime({dataDir:dir,...keys,serviceOptions:{backend:async function*(){yield 'done';}}});
- const tokens=await new RuntimeTokens(dir).init(),server=await startRuntimeServer({runtime,tokens});
+ const providers={claude:async()=>({installed:true,signedIn:true,message:''}),codex:async()=>({installed:false,signedIn:false,message:'Install Codex.'})};
+ const tokens=await new RuntimeTokens(dir).init(),server=await startRuntimeServer({runtime,tokens,providers});
  t.after(async()=>{await server.close();await runtime.close();await rm(dir,{recursive:true,force:true});});
  const call=(token,method,path,body)=>fetch(`http://127.0.0.1:${server.port}${path}`,{method,headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:body&&JSON.stringify(body)}).then(async r=>({status:r.status,body:await r.json()}));
  return{dir,runtime,tokens,call};
@@ -51,4 +52,29 @@ test('tokens are scoped, and revoking one stops it on the next request',async t=
 test('a second runtime cannot open the same data directory',async t=>{
  const f=await boot(t),keys=await openKeystore(f.dir,PASS);
  await assert.rejects(createRuntime({dataDir:f.dir,...keys}));
+});
+
+test('headless bots get the team board tools, chief-only ones only for the chief',async t=>{
+ const f=await boot(t),{service}=f.runtime;
+ await service.createBot({name:'Writer',instructions:'x',promptMode:'manual'});
+ const [chief,writer]=service.state.bots,names=async bot=>{
+  const c=service.state.conversations.find(c=>c.botId===bot.id&&!c.parentThreadId);
+  const rt=await service.runtimeFactory({bot,conversationId:c.id,signal:new AbortController().signal,onActivity(){},approve:async()=>true});
+  return rt.definitions.map(d=>d.name);
+ };
+ const chiefTools=await names(chief),writerTools=await names(writer);
+ for(const n of ['task_board_list','task_update','task_attach_output','list_objectives','knowledge_search','list_schedules','list_files'])assert.ok(chiefTools.includes(n)&&writerTools.includes(n),n);
+ for(const n of ['team_directory','verify_task_output','read_teammate_output'])assert.ok(chiefTools.includes(n)&&!writerTools.includes(n),n);
+ assert.equal(chiefTools.includes('computer'),false);
+});
+
+test('settings route reports logins, and only admins can switch to a provider that is signed in',async t=>{
+ const f=await boot(t),admin=(await f.tokens.create('admin')).token,read=(await f.tokens.create('read')).token;
+ const before=await f.call(read,'GET','/settings');
+ assert.equal(before.body.provider,'demo');assert.equal(before.body.login.claude.signedIn,true);assert.equal(before.body.login.codex.signedIn,false);
+ assert.equal((await f.call(read,'POST','/settings',{provider:'claude'})).status,403);
+ assert.match((await f.call(admin,'POST','/settings',{provider:'codex'})).body.error,/Install Codex/);
+ assert.match((await f.call(admin,'POST','/settings',{provider:'bogus'})).body.error,/Choose/);
+ const ok=await f.call(admin,'POST','/settings',{provider:'claude',model:'sonnet'});
+ assert.equal(ok.body.provider,'claude');assert.equal(f.runtime.service.state.settings.model,'sonnet');
 });

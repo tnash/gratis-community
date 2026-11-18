@@ -63,6 +63,7 @@ Phase 2 core, built beside the desktop app rather than by refactoring `main.cjs`
 - `src/runtime-core.mjs`: Electron-free chat service, schedules, objectives, controls, proactivity and knowledge.
 - `src/runtime-crypto.mjs`: passphrase keystore (scrypt + AES-256-GCM) in place of the OS keychain.
 - `src/runtime-server.mjs`: loopback HTTP API, protocol version check, read/run/admin tokens, instant revoke.
-- `scripts/gratis-runtime.mjs`: `init`, `run`, `token`. Passphrase comes from `GRATIS_RUNTIME_PASSPHRASE`.
+- `GET/POST /settings`: report Claude and Codex logins made on the host and (admin) select the provider. `gratis-runtime status` shows the same.
+- `scripts/gratis-runtime.mjs`: `init`, `run`, `token`, `status`. Passphrase comes from `GRATIS_RUNTIME_PASSPHRASE`.
 
-Not done: desktop as a client, local socket, remote TLS and enrollment code, checkpoint move between runtimes, Docker image, approval notifications (approvals queue but nothing notifies), memory, computer, Gmail, T3 and phone relay on the runtime, and the provider-login device flow (a headless runtime has no Claude or Codex login until the terms question is settled).
+Not done: desktop as a client, local socket, remote TLS and enrollment code, checkpoint move between runtimes, Docker image, approval notifications (approvals queue but nothing notifies), memory, computer, Gmail, T3 and phone relay on the runtime, and a Gratis-run provider login flow (login is done with the `claude` or `codex` CLI on the host; the terms question is still open).

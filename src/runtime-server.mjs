@@ -2,6 +2,8 @@ import {createServer} from 'node:http';
 import {randomBytes,createHash,timingSafeEqual,randomUUID} from 'node:crypto';
 import {readFile,writeFile,rename,mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
+import {getClaudeStatus} from './claude-backend.mjs';
+import {getCodexStatus} from './codex-client.mjs';
 
 export const PROTOCOL=1,SCOPES=['read','run','admin'];
 const RANK={read:1,run:2,admin:3};
@@ -31,8 +33,19 @@ export class RuntimeTokens{
 const readBody=req=>new Promise((resolve,reject)=>{let n=0;const parts=[];req.on('data',c=>{n+=c.length;if(n>100000){reject(new Error('Request too large.'));req.destroy();}else parts.push(c);});req.on('end',()=>{try{resolve(parts.length?JSON.parse(Buffer.concat(parts)):{});}catch{reject(new Error('Invalid JSON.'));}});});
 
 // Loopback only. Expose it beyond this machine with a TLS reverse proxy you control.
-export async function startRuntimeServer({runtime,tokens,port=0,host='127.0.0.1'}){
+export async function startRuntimeServer({runtime,tokens,port=0,host='127.0.0.1',providers={claude:getClaudeStatus,codex:getCodexStatus}}){
+ const login=async()=>{const [claude,codex]=await Promise.all([providers.claude(),providers.codex()]);return{claude:{installed:!!claude.installed,signedIn:!!claude.signedIn,message:claude.message},codex:{installed:!!codex.installed,signedIn:!!codex.signedIn,message:codex.message}};};
+ const settings=async()=>{const s=runtime.service.state.settings;return{provider:s.provider,model:s.model,effort:s.effort,login:await login()};};
  const routes={
+  'GET /settings':['read',settings],
+  // Claude and Codex need a login made on this machine with their own CLIs; this only selects which one the runtime uses.
+  'POST /settings':['admin',async b=>{
+   const current=runtime.service.state.settings;
+   if(!['demo','local','claude','codex'].includes(b.provider))throw new Error('Choose demo, local, claude or codex.');
+   if(b.provider==='claude'||b.provider==='codex'){const state=(await login())[b.provider];if(!state.signedIn)throw new Error(state.message||`Sign in to ${b.provider} on this machine first.`);}
+   await runtime.service.updateSettings({...current,provider:b.provider,model:b.model??'',effort:b.effort??current.effort});
+   return settings();
+  }],
   'GET /status':['read',()=>({protocol:PROTOCOL,uptimeMs:Date.now()-runtime.startedAt,bots:runtime.service.state.bots.length,schedules:runtime.schedules.items.length,enabledSchedules:runtime.schedules.items.filter(i=>i.enabled).length})],
   'GET /state':['read',()=>runtime.service.snapshot()],
   'POST /send':['run',b=>runtime.service.send({conversationId:b.conversationId,text:b.text})],

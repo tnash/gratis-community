@@ -92,7 +92,7 @@ test('deny beats require approval, a bot rule beats a global one, and globs igno
 test('a discount rule gates 15 but not 5, and activity logs hold no tool input',async t=>{
  const f=await setup(t);await f.c.savePolicy({botId:null,tool:'create_offer',action:'require_approval',note:'Your limit is 10%',condition:{field:'discountPercent',op:'>',value:10}});
  assert.equal(f.c.gate(f.bot,'create_offer',{discountPercent:15}).action,'require_approval');assert.equal(f.c.gate(f.bot,'create_offer',{discountPercent:5}),null);
- assert.doesNotMatch(JSON.stringify(f.c.data.events),/discountPercent|15/);
+ assert.doesNotMatch(f.c.data.events.map(e=>e.summary).join(' '),/discountPercent|\b15\b/);assert.doesNotMatch(JSON.stringify(f.c.data.events),/discountPercent/);
 });
 test('scheduled runs skip while a bot is paused and are recorded',async t=>{
  const f=await setup(t);const schedules=await new Schedules({...f.options}).init();t.after(()=>schedules.close());

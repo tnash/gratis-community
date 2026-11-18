@@ -133,7 +133,7 @@ app.whenReady().then(async () => {
   proactivity=await new Proactivity({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,service,controls,objectives,busy:c=>schedules.busy(c),onChange:()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:controls-changed');}}).init();service.proactivity=proactivity;proactivity.start();
   const {Knowledge}=await import('./knowledge.mjs');
   knowledge=await new Knowledge({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,service,onChange:()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:knowledge-changed');}}).init();service.knowledge=knowledge;
-  const {TeamBoard}=await import('./team-board.mjs');teamBoard=await new TeamBoard({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,service,files}).init();
+  const {TeamBoard}=await import('./team-board.mjs');teamBoard=await new TeamBoard({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,service,files,onChange:()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:teamboard-changed');}}).init();
   schedules.start();
   t3Tasks.start();
   for(const c of service.snapshot().conversations)if(c.computerPause)setHumanControl(c.id,true);
@@ -246,6 +246,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('orbit:connection-catalog', async (e,search) => {authorized(e);return connections.catalog(search);});
   ipcMain.handle('orbit:connect-app', async (e,slug) => {authorized(e);const url=await connections.connect(slug);await shell.openExternal(url);return true;});
   const t3Scope=value=>{const c=service._conversation(value?.conversationId);service._threadOpen(c);return c;};
+  for(const [name,operation]of Object.entries({view:()=>teamBoard.view(),create:v=>teamBoard.userCreate(v),update:v=>teamBoard.userUpdate(v),remove:v=>teamBoard.remove(v),verify:v=>teamBoard.userVerify(v),read:v=>teamBoard.userRead(v)}))ipcMain.handle('orbit:teamboard-'+name,async(e,value)=>{authorized(e);return operation(value||{});});
   for(const [name,operation]of Object.entries({view:()=>knowledge.snapshot(),create:v=>knowledge.create(v),update:v=>knowledge.update(v),remove:v=>knowledge.remove(v)}))ipcMain.handle('orbit:knowledge-'+name,async(e,value)=>{authorized(e);return operation(value);});
   for(const [name,operation]of Object.entries({view:()=>proactivity.snapshot(),setLevel:v=>proactivity.setLevel(v?.botId,v?.level),setQuietHours:v=>proactivity.setQuietHours(v?.quiet??null),resolve:v=>proactivity.resolve(v),remove:v=>proactivity.remove(v)}))ipcMain.handle('orbit:proactivity-'+name,async(e,value)=>{authorized(e);return operation(value);});
   ipcMain.handle('orbit:hire-draft',async(e,value)=>{authorized(e);const {draftHire}=await import('./hire.mjs');const controller=new AbortController(),timer=setTimeout(()=>controller.abort(new Error('Drafting took too long. Try again.')),90000);try{return await draftHire({sentence:value?.sentence,answers:value?.answers,settings:service.state.settings,workspaceDir:require('node:path').join(service.store.directory,'claude-workspaces','hire-setup'),signal:controller.signal});}finally{clearTimeout(timer);}});

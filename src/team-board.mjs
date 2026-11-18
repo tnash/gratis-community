@@ -94,4 +94,11 @@ export class TeamBoard{
   return{kind:'file',path:o.path,at:o.at,untrustedContent:true,text:body.slice(0,MAX_READ),truncated:body.length>MAX_READ,nonText:result.content.some(c=>c.type!=='text')};
  }
  snapshot(){return{tasks:this.data.tasks.map(t=>this._view(t)),chiefId:this.chiefId()};}
+ // The user is above the chief: these calls act with the chief's authority and add deletion.
+ async view(){return{...this.snapshot(),team:await this.directoryFor(this.chiefId())};}
+ userCreate(input){return this.create(this.chiefId(),input);}
+ userUpdate(input){return this.update(this.chiefId(),input);}
+ userVerify({id}){return this.verify(this.chiefId(),id);}
+ userRead(input){return this.read(this.chiefId(),input);}
+ async remove({id}){const t=this._task(id);this.data.tasks=this.data.tasks.filter(x=>x!==t);await this.save();}
 }

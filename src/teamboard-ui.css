@@ -1,0 +1,12 @@
+#workspace-teamboard { padding: 22px; overflow-y: auto; }
+#workspace-teamboard h4 { font-size: 13px; color: var(--gratis-muted,#999); font-weight: 500; margin: 26px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+#workspace-teamboard form { display: grid; gap: 14px; }
+#workspace-teamboard label { display: grid; gap: 6px; color: var(--gratis-muted,#999); font-size: 13px; }
+#workspace-teamboard input,#workspace-teamboard select,#workspace-teamboard textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px 12px; color: var(--gratis-text,#e6e6e6); background: var(--gratis-field,#242424); border: 1px solid var(--gratis-line,#333); border-radius: 11px; font: inherit; font-size: 14px; }
+#workspace-teamboard :focus-visible { outline: 2px solid #609bdf; outline-offset: 2px; }
+#workspace-teamboard .schedule-card select { margin-top: 10px; }
+#workspace-teamboard pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; max-height: 220px; overflow: auto; margin: 6px 0 0; }
+#teamboard-error { color: #ff777b; font-size: 13px; }
+.teamboard-ok { color: #4caf7d; }
+.teamboard-bad { color: #ff777b; }
+#work-panel.is-fullscreen #workspace-teamboard { width: 100%; max-width: 800px; margin: 0 auto; }
